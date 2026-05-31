@@ -1,0 +1,7 @@
+<Solution>
+  <Configurations>
+    <Platform Name="x64" />
+    <Platform Name="x86" />
+  </Configurations>
+  <Project Path="YoutubeOpenGL.vcxproj" Id="59b88b94-eb86-44b1-827b-ad2163f49cf3" />
+</Solution>
