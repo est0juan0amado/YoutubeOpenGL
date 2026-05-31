@@ -43,7 +43,7 @@ Curve::Curve(const std::vector<glm::vec3>& controlPoints, const glm::vec3& world
 		positions.push_back(evaluateBezier(controlPoints, t) + worldOffset);
 	}
 
-	// Calcula tangentes por diferencias finitas para cada muestra.
+	// Calcula tangentes aproximadas usando diferencias finitas para cada muestra.
 	std::vector<glm::vec3> tangents(samples);
 	for (int i = 0; i < samples; ++i)
 	{

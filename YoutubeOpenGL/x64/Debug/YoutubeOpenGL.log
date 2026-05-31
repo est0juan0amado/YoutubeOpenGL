@@ -1,4 +1,7 @@
-﻿  Curve.cpp
+﻿  Model.cpp
+C:\Users\Dayzi\source\repos\YoutubeOpenGL\Model.cpp(350,79): warning C4267: 'argumento': conversión de 'size_t' a 'GLuint'; posible pérdida de datos
+C:\Users\Dayzi\source\repos\YoutubeOpenGL\Model.cpp(396,76): warning C4267: 'argumento': conversión de 'size_t' a 'GLuint'; posible pérdida de datos
+C:\Users\Dayzi\source\repos\YoutubeOpenGL\Model.cpp(427,77): warning C4267: 'argumento': conversión de 'size_t' a 'GLuint'; posible pérdida de datos
   main.cpp
   Generando código...
   YoutubeOpenGL.vcxproj -> C:\Users\Dayzi\source\repos\YoutubeOpenGL\x64\Debug\YoutubeOpenGL.exe

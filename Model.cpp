@@ -1,8 +1,6 @@
 #include"Model.h"
 
-// Constructor: carga y parsea un archivo glTF (.gltf) y prepara los datos binarios.
-// - 'file' debe ser la ruta al .gltf en disco. El método parsea el JSON y extrae
-//   la referencia al buffer binario asociado (archivo .bin o URI embebida).
+// Constructor: carga y parsea un archivo glTF y prepara los datos binarios.
 Model::Model(const char* file)
 {
 	// Carga el texto del archivo .gltf y lo parsea como JSON
@@ -13,8 +11,7 @@ Model::Model(const char* file)
 	Model::file = file;
 	data = getData();
 
-	// Comienza el recorrido del grafo de la escena a partir del nodo raíz (índice 0)
-	// Esto construirá las mallas, matrices y transformaciones del modelo
+	// Inicia el recorrido del grafo de nodos desde la raíz para construir las mallas
 	traverseNode(0);
 }
 
@@ -22,7 +19,7 @@ Model::Model(const char* file)
 // Esta esfera se usa para posicionar la cámara de forma que el modelo quepa en la vista.
 void Model::computeBounds(glm::vec3& outCenter, float& outRadius)
 {
-	// Si no hay mallas, devolvemos valores por defecto
+	// Si no hay mallas, devolvemos centro en origen y radio 1
 	if (meshes.empty())
 	{
 		outCenter = glm::vec3(0.0f);
@@ -30,7 +27,7 @@ void Model::computeBounds(glm::vec3& outCenter, float& outRadius)
 		return;
 	}
 
-	// Inicializamos cajas AABB en espacio mundo para acumular extremos
+	// Inicializa AABB en espacio mundo
 	glm::vec3 minB(FLT_MAX);
 	glm::vec3 maxB(-FLT_MAX);
 
@@ -41,7 +38,7 @@ void Model::computeBounds(glm::vec3& outCenter, float& outRadius)
 		glm::mat4 modelMat = matricesMeshes[i];
 		for (const auto& v : verts)
 		{
-			// Transformamos la posición local del vértice al espacio mundo usando la matriz de malla
+			// Transformación local->mundo y actualización de AABB
 			glm::vec4 worldPos = modelMat * glm::vec4(v.position, 1.0f);
 			glm::vec3 p = glm::vec3(worldPos);
 			minB = glm::min(minB, p);
@@ -49,10 +46,10 @@ void Model::computeBounds(glm::vec3& outCenter, float& outRadius)
 		}
 	}
 
-	// Centro de la AABB -> centro aproximado de la esfera envolvente
+	// Calcula el centro como el punto medio de la AABB
 	outCenter = (minB + maxB) * 0.5f;
 
-	// Calculamos el radio como la distancia máxima desde el centro a cualquier vértice transformado
+	// Calcula el radio máximo desde el centro a los vértices
 	outRadius = 0.0f;
 	for (size_t i = 0; i < meshes.size(); ++i)
 	{
@@ -60,6 +57,7 @@ void Model::computeBounds(glm::vec3& outCenter, float& outRadius)
 		glm::mat4 modelMat = matricesMeshes[i];
 		for (const auto& v : verts)
 		{
+			// Transformación local->mundo y actualización del radio máximo
 			glm::vec3 p = glm::vec3(modelMat * glm::vec4(v.position, 1.0f));
 			outRadius = std::max(outRadius, glm::length(p - outCenter));
 		}
@@ -67,13 +65,12 @@ void Model::computeBounds(glm::vec3& outCenter, float& outRadius)
 	if (outRadius <= 0.0f) outRadius = 1.0f;
 }
 
-// Dibuja todas las mallas del modelo con el shader y la cámara indicados.
-// Se aplica 'modelTransform' global y la matriz local de cada malla antes de dibujar.
+// Dibuja todas las mallas del modelo aplicando transformaciones.
 void Model::Draw(Shader& shader, Camera& camera)
 {
 	for (unsigned int i = 0; i < meshes.size(); i++)
 	{
-		// Multiplica la transformación externa del modelo por la transform de la malla
+		// Combina la transformación global con la de la malla
 		glm::mat4 combined = modelTransform * matricesMeshes[i];
 		meshes[i].Mesh::Draw(shader, camera, combined);
 	}
@@ -173,7 +170,7 @@ void Model::traverseNode(unsigned int nextNode, glm::mat4 matrix)
 		scale = glm::make_vec3(scaleValues);
 	}
 
-	// Si el nodo define una matriz completa (16 valores), la leemos y la usamos
+	// Si el nodo tiene una matriz de transformación completa, la usamos directamente (ignora T/R/S)
 	glm::mat4 matNode = glm::mat4(1.0f);
 	if (node.find("matrix") != node.end())
 	{
@@ -315,6 +312,7 @@ std::vector<GLuint> Model::getIndices(json accessor)
 	return indices;
 }
 
+
 std::vector<Texture> Model::getTextures()
 {
 	std::vector<Texture> textures;
@@ -392,6 +390,7 @@ std::vector<Texture> Model::getTexturesForMaterial(int matIndex)
 							break;
 						}
 					}
+					// Si no estaba en caché, la cargamos y la añadimos a la caché
 					if (textures.empty())
 					{
 						Texture diff((fileDirectory + uri).c_str(), "diffuse", loadedTex.size());
@@ -402,7 +401,7 @@ std::vector<Texture> Model::getTexturesForMaterial(int matIndex)
 				}
 			}
 		}
-		// Texture metallicRoughness si existe
+		// Intentamos obtener metallicRoughnessTexture definido en pbrMetallicRoughness
 		if (pbr.find("metallicRoughnessTexture") != pbr.end())
 		{
 			int texIndex = pbr["metallicRoughnessTexture"]["index"];
@@ -422,6 +421,7 @@ std::vector<Texture> Model::getTexturesForMaterial(int matIndex)
 							break;
 						}
 					}
+					// Si no estaba en caché, la cargamos y la añadimos a la caché
 					if (!found)
 					{
 						Texture spec((fileDirectory + uri).c_str(), "specular", loadedTex.size());
@@ -437,6 +437,7 @@ std::vector<Texture> Model::getTexturesForMaterial(int matIndex)
 	return textures;
 }
 
+// Combina las posiciones, normales y UVs en una lista de vértices para la malla.
 std::vector<Vertex> Model::assembleVertices
 (
 	std::vector<glm::vec3> positions,
@@ -461,6 +462,7 @@ std::vector<Vertex> Model::assembleVertices
 	return vertices;
 }
 
+// Helpers para agrupar floats planos en vectores de tamaño adecuado (vec2, vec3, vec4).
 std::vector<glm::vec2> Model::groupFloatsVec2(std::vector<float> floatVec)
 {
 	const unsigned int floatsPerVector = 2;
@@ -477,6 +479,7 @@ std::vector<glm::vec2> Model::groupFloatsVec2(std::vector<float> floatVec)
 	}
 	return vectors;
 }
+// Similar a groupFloatsVec2 pero para vec3
 std::vector<glm::vec3> Model::groupFloatsVec3(std::vector<float> floatVec)
 {
 	const unsigned int floatsPerVector = 3;
@@ -493,6 +496,7 @@ std::vector<glm::vec3> Model::groupFloatsVec3(std::vector<float> floatVec)
 	}
 	return vectors;
 }
+// Similar a groupFloatsVec2 pero para vec4
 std::vector<glm::vec4> Model::groupFloatsVec4(std::vector<float> floatVec)
 {
 	const unsigned int floatsPerVector = 4;

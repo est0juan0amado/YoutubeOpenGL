@@ -1,8 +1,3 @@
-#// Proyecto: YoutubeOpenGL
-#// Archivo: main.cpp
-#// Propósito: punto de entrada de la aplicación. Inicializa GLFW/GLAD, crea la cámara,
-#// carga el modelo glTF, construye la curva Bézier y ejecuta el bucle principal de render.
-#// Contiene la lógica de gestión de ventana, cálculo de FOV dinámico y animación simple.
 //------- Ignorar esto ----------
 #include<filesystem>
 namespace fs = std::filesystem;
