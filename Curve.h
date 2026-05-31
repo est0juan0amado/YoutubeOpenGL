@@ -1,5 +1,3 @@
-#pragma once
-
 #include <vector>
 #include <glm/glm.hpp>
 #include "VAO.h"
@@ -35,6 +33,7 @@ public:
 	glm::vec3 getTangent(float t) const;
 	void getPointAndTangent(float t, glm::vec3& outPoint, glm::vec3& outTangent) const;
 
+	// Permite actualizar los puntos de control y reconstruir la curva (si es necesario)
 private:
 	std::vector<LineVertex> vertices;
 	VAO VAO;

@@ -86,7 +86,7 @@ Shader shaderProgram("default.vert", "default.frag");
 
 	// (la curva se creará tras calcular los bounds del modelo)
 
-	// Posiciona la cámara para enmarcar el modelo según su esfera envolvente
+	// Calcula el centro y radio del modelo para posicionar la curva y la cámara adecuadamente
 	glm::vec3 modelCenter;
 	float modelRadius;
 	model.computeBounds(modelCenter, modelRadius);
@@ -128,7 +128,7 @@ Shader shaderProgram("default.vert", "default.frag");
 		// Limpia el color y el buffer de profundidad
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-		// Gestiona las entradas de la cámara
+		// Maneja la entrada de la cámara (teclado + ratón)
 		camera.Inputs(window);
 		// Ajusta dinámicamente viewport y FOV para que el modelo quepa al redimensionar/pasara a fullscreen
 		int w, h;

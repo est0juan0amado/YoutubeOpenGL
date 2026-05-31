@@ -2,10 +2,7 @@
 #include <glm/gtc/type_ptr.hpp>
 #include <glm/gtx/transform.hpp>
 
-// Implementación de De Casteljau para curvas Bezier (optimizado para el caso cúbico)
-// Devuelve la posición en la curva para un parámetro t en [0,1].
-// - Si hay exactamente 4 puntos de control se usa la forma cerrada cúbica (fórmula polinómica).
-// - Para cualquier otro número de puntos se aplica el algoritmo iterativo de De Casteljau.
+// Evalúa la curva Bézier para t ∈ [0,1].
 glm::vec3 Curve::evaluateBezier(const std::vector<glm::vec3>& ctrl, float t) const
 {
 	// Caso común: 4 puntos (cúbico). Si no es cúbico, usar el algoritmo general iterativo
@@ -37,9 +34,7 @@ Curve::Curve(const std::vector<glm::vec3>& controlPoints, const glm::vec3& world
 	// Guardamos los puntos de control
 	Curve::controlPoints = controlPoints;
 
-	// Muestreamos la curva en 'samples' posiciones y calculamos las tangentes por diferencias finitas.
-	// Este muestreo genera una lista de posiciones en espacio mundo (ya con worldOffset aplicado)
-	// que luego usaremos para construir anillos de vértices alrededor de la curva (tubo).
+	// Muestrea la curva en 'samples' posiciones y aplica worldOffset.
 	std::vector<glm::vec3> positions;
 	positions.reserve(samples);
 	for (int i = 0; i < samples; ++i)
@@ -48,9 +43,7 @@ Curve::Curve(const std::vector<glm::vec3>& controlPoints, const glm::vec3& world
 		positions.push_back(evaluateBezier(controlPoints, t) + worldOffset);
 	}
 
-	// Tangentes aproximadas (central differences cuando es posible)
-	// Las tangentes definen la dirección local (tangent vector) en cada muestra y son
-	// críticas para construir un frame local (T, N, B) que orienta el anillo transversal del tubo.
+	// Calcula tangentes por diferencias finitas para cada muestra.
 	std::vector<glm::vec3> tangents(samples);
 	for (int i = 0; i < samples; ++i)
 	{
@@ -59,12 +52,7 @@ Curve::Curve(const std::vector<glm::vec3>& controlPoints, const glm::vec3& world
 		else tangents[i] = glm::normalize(positions[i+1] - positions[i-1]);
 	}
 
-	// Construcción del tubo: para cada muestra construimos un anillo de vértices usando un frame local
-	// - T: tangente (forward)
-	// - N: un vector normal ortogonal a T (se elige a partir de 'up' y se normaliza)
-	// - B: binormal (completando la base ortonormal T,N,B)
-	// Elegimos inicialmente 'up' como (0,1,0) pero si T es casi colineal con up buscamos un eje alternativo
-	// para evitar un frame degenerado.
+	// Construye anillos transversales usando frame local (T,N,B).
 	glm::vec3 up = glm::vec3(0.0f, 1.0f, 0.0f);
 	for (int i = 0; i < samples; ++i)
 	{
@@ -77,8 +65,9 @@ Curve::Curve(const std::vector<glm::vec3>& controlPoints, const glm::vec3& world
 
 		for (int s = 0; s < ringSegments; ++s)
 		{
-			// Para cada segmento angular 'a' construimos un offset en el plano normal (N,B)
-			// que define la circunferencia del anillo en esa muestra.
+			// Offset radial en el plano (N,B) para el segmento angular 'a'.
+			// Calcula posición, normal, color y UV del vértice.
+
 			float a = (float)s / ringSegments * glm::two_pi<float>();
 			glm::vec3 offset = (glm::cos(a) * N + glm::sin(a) * B) * radius;
 			LineVertex v;
@@ -94,8 +83,7 @@ Curve::Curve(const std::vector<glm::vec3>& controlPoints, const glm::vec3& world
 		}
 	}
 
-	// Índices que forman triángulos entre anillos adyacentes
-	// Cada par de anillos consecutivos se conecta mediante quads (dos triángulos por segmento angular).
+	// Genera índices que conectan anillos (2 triángulos por segmento).
 	std::vector<GLuint> indices;
 	for (int i = 0; i < samples - 1; ++i)
 	{
@@ -117,8 +105,7 @@ Curve::Curve(const std::vector<glm::vec3>& controlPoints, const glm::vec3& world
 		}
 	}
 
-	// Subimos los datos a GPU: convertimos LineVertex -> Vertex (estructura usada por VBO)
-	// La conversión mantiene la información esencial (posición, normal, color, UV)
+	// Convierte LineVertex -> Vertex y prepara buffers GPU (VBO/EBO/VAO).
 	std::vector<Vertex> vtx;
 	vtx.reserve(vertices.size());
 	for (auto &lv : vertices) {
@@ -133,7 +120,7 @@ Curve::Curve(const std::vector<glm::vec3>& controlPoints, const glm::vec3& world
 	VBO buffer(vtx);
 	ebo = new EBO(indices);
 
-	// Configuramos VAO/VBO/EBO para dibujar la malla del tubo en draw calls posteriores
+	// Configura VAO/VBO/EBO y atributos (position, normal, color, texUV).
 	VAO.Bind();
 	VAO.LinkAttrib(buffer, 0, 3, GL_FLOAT, sizeof(Vertex), (void*)0);
 	VAO.LinkAttrib(buffer, 1, 3, GL_FLOAT, sizeof(Vertex), (void*)(3 * sizeof(float)));
@@ -146,7 +133,7 @@ Curve::Curve(const std::vector<glm::vec3>& controlPoints, const glm::vec3& world
 	indexCount = (int)indices.size();
 }
 
-// Devuelve la posición en la curva para un parámetro t en [0,1] usando la función de evaluación de Bezier
+// Devuelve la posición en la curva para t en [0,1].
 glm::vec3 Curve::getPoint(float t) const { return evaluateBezier(controlPoints, glm::clamp(t, 0.0f, 1.0f)); }
 glm::vec3 Curve::getTangent(float t) const { float eps = 0.001f; float ta = glm::clamp(t - eps, 0.0f, 1.0f); float tb = glm::clamp(t + eps, 0.0f, 1.0f); return glm::normalize(evaluateBezier(controlPoints, tb) - evaluateBezier(controlPoints, ta)); }
 void Curve::getPointAndTangent(float t, glm::vec3& outPoint, glm::vec3& outTangent) const { outPoint = getPoint(t); outTangent = getTangent(t); }
@@ -157,13 +144,13 @@ Curve::~Curve()
 	if (ebo) { ebo->Delete(); delete ebo; ebo = nullptr; }
 }
 
-// Dibuja la malla tubular con iluminación y texturas (si existieran)
+// Dibuja la malla tubular con iluminación/texturas.
 void Curve::Draw(Shader& shader, Camera& camera)
 {
 	shader.Activate();
 	camera.Matrix(shader, "camMatrix");
 
-	// Usamos matrices identidad: la curva ya está en posiciones de mundo cuando se construyó
+	// Usamos matrices identidad (curva en espacio mundo).
 	glm::mat4 I = glm::mat4(1.0f);
 	glUniformMatrix4fv(glGetUniformLocation(shader.ID, "model"), 1, GL_FALSE, glm::value_ptr(I));
 	glUniformMatrix4fv(glGetUniformLocation(shader.ID, "translation"), 1, GL_FALSE, glm::value_ptr(I));
@@ -178,10 +165,10 @@ void Curve::Draw(Shader& shader, Camera& camera)
 	VAO.Unbind();
 }
 
-// Dibuja la curva con un shader sencillo que usa el color de vértice (ignora iluminación)
+// Dibuja la curva con un shader sencillo que usa color por vértice.
 void Curve::DrawPlain(Shader& plainShader, Camera& camera)
 {
-	// Usa un shader plano que ignora iluminación/texturas y dibuja el color por vértice
+	// Shader plano: ignora iluminación y usa color por vértice.
 	plainShader.Activate();
 	camera.Matrix(plainShader, "camMatrix");
 

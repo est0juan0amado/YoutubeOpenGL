@@ -67,7 +67,7 @@ void Camera::Inputs(GLFWwindow* window, float deltaTime)
 		firstClick = true;
 	}
 }
-
+// Calcula las matrices de vista y proyección y las combina en cameraMatrix
 void Camera::updateMatrix(float FOVdeg, float nearPlane, float farPlane)
 {
 	// Calcula las matrices de vista y proyección y las combina en cameraMatrix
@@ -78,6 +78,7 @@ void Camera::updateMatrix(float FOVdeg, float nearPlane, float farPlane)
 	cameraMatrix = projection * view;
 }
 
+// Envía cameraMatrix al shader en el uniform indicado
 void Camera::Matrix(Shader& shader, const char* uniform)
 {
 	// Envía cameraMatrix al shader en el uniform indicado
@@ -85,7 +86,7 @@ void Camera::Matrix(Shader& shader, const char* uniform)
 }
 
 
-
+// Versión de conveniencia que asume ~60 FPS si no se proporciona deltaTime
 void Camera::Inputs(GLFWwindow* window)
 {
 	// Versión de conveniencia que asume ~60 FPS si no se proporciona deltaTime
@@ -110,7 +111,8 @@ void Camera::Inputs(GLFWwindow* window)
 		// Convertimos desplazamientos de cursor a ángulos y actualizamos la orientación
 		float rotX = sensitivity * (float)(mouseY - (height / 2)) / height;
 		float rotY = sensitivity * (float)(mouseX - (width / 2)) / width;
-
+	
+		// Rotación vertical: rotamos alrededor del eje perpendicular a Orientation y Up
 		glm::vec3 newOrientation = glm::rotate(Orientation, glm::radians(-rotX), glm::normalize(glm::cross(Orientation, Up)));
 		if (abs(glm::angle(newOrientation, Up) - glm::radians(90.0f)) <= glm::radians(85.0f))
 		{
